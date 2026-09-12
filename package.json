@@ -1,0 +1,27 @@
+{
+  "name": "desktop-cat",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "dependencies": {
+    "pixi.js": "^7.4.2",
+    "@tauri-apps/api": "^1.5.3",
+    "@tauri-apps/plugin-store": "^2.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^1.5.11",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
+  }
+}

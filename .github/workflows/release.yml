@@ -1,0 +1,52 @@
+name: 'Release & Build Executable'
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build Tauri and Create Release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: 'Desktop Cat v__VERSION__'
+          releaseBody: |
+            ## Desktop Cat Release 🐾
+
+            ### Downloads:
+            - **Installer (Recommended)**: `Desktop Cat_{{version}}_x64-setup.exe`
+            - **MSI Package**: `Desktop Cat_{{version}}_x64_en-US.msi`
+
+            ### Features:
+            - Interactive Desktop Cat companion for Windows
+            - Real-time physics, gravity, dragging, and floor collision
+            - Eating animations with food & water bowls
+            - Petting animations with hand strokes, purr sparkles & hearts
+            - Stats panel (hunger, energy, happiness) and customizable personality!
+          releaseDraft: false
+          prerelease: false

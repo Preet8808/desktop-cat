@@ -1,0 +1,106 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  background: transparent !important;
+  overflow: hidden;
+}
+
+#app {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  background: transparent;
+  pointer-events: none; /* let clicks fall through by default */
+}
+
+#cat-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  pointer-events: none; /* PixiJS hit-testing re-enables this on the sprite itself */
+}
+
+.hidden {
+  display: none !important;
+}
+
+.context-menu, .settings-window, .stats-panel {
+  position: absolute;
+  pointer-events: auto;
+  background: rgba(30, 30, 34, 0.92);
+  color: #f2f2f2;
+  border-radius: 10px;
+  padding: 6px;
+  font: 500 13px "Segoe UI", sans-serif;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(6px);
+  min-width: 140px;
+  z-index: 1000;
+}
+
+.context-menu button, .settings-window button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: inherit;
+  text-align: left;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.context-menu button:hover, .settings-window button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.settings-window label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+}
+
+.settings-window input[type="text"],
+.settings-window select,
+.settings-window input[type="range"] {
+  background: #2a2a30;
+  color: #fff;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.stats-panel .stat-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+}
+
+.stats-panel .bar {
+  flex: 1;
+  height: 8px;
+  background: #444;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.stats-panel .bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #6fcf97, #56ccf2);
+}
