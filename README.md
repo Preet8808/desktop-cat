@@ -15,7 +15,7 @@ You can download the Windows executable directly to run Desktop Cat on your PC:
 
 1. Go to the [**Releases**](../../releases) tab of this repository.
 2. Download either:
-   - **Installer**: `Desktop Cat_0.1.0_x64-setup.exe` (Standard Windows installer with Start Menu shortcut)
+   - **Installer**: `Desktop Cat_0.1.1_x64-setup.exe` or `Desktop Cat_0.1.1_x64_en-US.msi` (Windows installer)
    - **Portable Version**: `Desktop Cat.exe` (Standalone portable executable, no install required — just double click and run!)
 3. Run the application and enjoy your new desktop companion!
 
