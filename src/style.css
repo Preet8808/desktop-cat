@@ -27,7 +27,7 @@ html, body {
   left: 0;
   width: 100vw;
   height: 100vh;
-  pointer-events: none; /* PixiJS hit-testing re-enables this on the sprite itself */
+  pointer-events: auto;
 }
 
 .hidden {
@@ -131,23 +131,25 @@ html, body {
   color: #ff6b6b;
 }
 
-.settings-window button {
+.settings-window button, .stats-panel button {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   width: 100%;
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: inherit;
-  text-align: left;
+  text-align: center;
   padding: 6px 10px;
   border-radius: 6px;
   cursor: pointer;
   font: inherit;
+  transition: all 0.15s ease;
 }
 
-.settings-window button:hover {
-  background: rgba(255, 255, 255, 0.12);
+.settings-window button:hover, .stats-panel button:hover {
+  background: rgba(255, 255, 255, 0.16);
 }
 
 .settings-window label {

@@ -23,6 +23,12 @@ export class SettingsWindow {
     this.actions = actions;
     this.current = { ...initial };
     this.onVisibilityChange = onVisibilityChange;
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !this.el.classList.contains("hidden")) {
+        this.hide();
+      }
+    });
   }
 
   open(): void {

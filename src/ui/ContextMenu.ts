@@ -17,6 +17,7 @@ export class ContextMenu {
   private el: HTMLElement;
   private actions: ContextMenuActions;
   private onVisibilityChange: (visible: boolean) => void;
+  private openedAt = 0;
 
   constructor(
     actions: ContextMenuActions,
@@ -30,12 +31,14 @@ export class ContextMenu {
     this.onVisibilityChange = onVisibilityChange;
 
     document.addEventListener("click", (e) => {
+      if (performance.now() - this.openedAt < 150) return;
       if (!this.el.contains(e.target as Node) && !this.el.classList.contains("hidden")) {
         this.hide();
       }
     });
 
     document.addEventListener("contextmenu", (e) => {
+      if (performance.now() - this.openedAt < 150) return;
       if (!this.el.contains(e.target as Node) && !this.el.classList.contains("hidden")) {
         this.hide();
       }
@@ -49,6 +52,7 @@ export class ContextMenu {
   }
 
   open(x: number, y: number): void {
+    this.openedAt = performance.now();
     this.render();
     const width = 160;
     const height = 110;

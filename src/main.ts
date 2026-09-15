@@ -111,6 +111,7 @@ async function main() {
     try {
       const position = await invoke<{ x: number; y: number }>("get_cursor_position");
       updatePointerTarget(position.x, position.y);
+      interactionManager?.checkCursorHover(position.x, position.y);
     } catch {
       // Cursor polling is unavailable while running outside the Tauri window.
     } finally {
@@ -118,9 +119,12 @@ async function main() {
     }
   };
   window.addEventListener("mousemove", (event) => {
-    if (!hasTauri) updatePointerTarget(event.clientX, event.clientY);
+    if (!hasTauri) {
+      updatePointerTarget(event.clientX, event.clientY);
+      interactionManager?.checkCursorHover(event.clientX, event.clientY);
+    }
   });
-  window.setInterval(() => void pollCursor(), 40);
+  window.setInterval(() => void pollCursor(), 35);
 
   // --- Interaction wiring ---
   interactionManager = new InteractionManager(animationSystem.sprite, {

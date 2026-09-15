@@ -27,6 +27,8 @@ export class InteractionManager {
   private lastClickTime = 0;
   private dragOffset = { x: 0, y: 0 };
   private overlayInteractive = false;
+  private isHovered = false;
+  private dragStarted = false;
 
   constructor(sprite: PIXI.Sprite, callbacks: InteractionCallbacks) {
     this.sprite = sprite;
@@ -36,8 +38,12 @@ export class InteractionManager {
     sprite.eventMode = "static";
     sprite.cursor = "pointer";
 
-    sprite.on("pointerover", () => this.setClickThrough(false));
+    sprite.on("pointerover", () => {
+      this.isHovered = true;
+      this.setClickThrough(false);
+    });
     sprite.on("pointerout", () => {
+      this.isHovered = false;
       if (!this.dragging && !this.overlayInteractive) this.setClickThrough(true);
     });
 
@@ -74,13 +80,48 @@ export class InteractionManager {
       triggerRightClick(e.global.x, e.global.y);
     });
 
+    // Native window contextmenu listener ensures right-click always triggers
+    // even if Pixi's synthetic event is delayed or consumed
+    window.addEventListener("contextmenu", (e) => {
+      const bounds = this.sprite.getBounds();
+      if (
+        e.clientX >= bounds.x - 12 &&
+        e.clientX <= bounds.x + bounds.width + 12 &&
+        e.clientY >= bounds.y - 12 &&
+        e.clientY <= bounds.y + bounds.height + 12
+      ) {
+        e.preventDefault();
+        triggerRightClick(e.clientX, e.clientY);
+      }
+    });
+
     window.addEventListener("pointermove", (e) => this.handlePointerMove(e));
     window.addEventListener("pointerup", () => this.handlePointerUp());
   }
 
+  checkCursorHover(x: number, y: number): void {
+    if (this.overlayInteractive || this.dragging) return;
+    const bounds = this.sprite.getBounds();
+    const isHovering = (
+      x >= bounds.x - 12 &&
+      x <= bounds.x + bounds.width + 12 &&
+      y >= bounds.y - 12 &&
+      y <= bounds.y + bounds.height + 12
+    );
+
+    if (isHovering !== this.isHovered) {
+      this.isHovered = isHovering;
+      this.setClickThrough(!isHovering);
+    }
+  }
+
   setOverlayInteractive(interactive: boolean): void {
     this.overlayInteractive = interactive;
-    this.setClickThrough(!interactive);
+    if (interactive) {
+      this.setClickThrough(false);
+    } else if (!this.isHovered && !this.dragging) {
+      this.setClickThrough(true);
+    }
   }
 
   private setClickThrough(ignore: boolean): void {
@@ -109,8 +150,6 @@ export class InteractionManager {
     this.dragStarted = false;
   }
 
-  private dragStarted = false;
-
   private handlePointerMove(e: PointerEvent): void {
     if (!this.dragging) return;
     if (!this.dragStarted) {
@@ -129,12 +168,8 @@ export class InteractionManager {
       this.dragStarted = false;
       this.callbacks.onDragEnd();
     }
-    // Cursor may have left the sprite mid-drag; re-check whether we should
-    // restore click-through.
-    if (!this.sprite.getBounds().contains(0, 0)) {
-      // Cheap heuristic: pointerout already handles the common case, this
-      // just guards against a stuck non-click-through state after a drag
-      // that ends off-sprite.
+    if (!this.isHovered && !this.overlayInteractive) {
+      this.setClickThrough(true);
     }
   }
 }
