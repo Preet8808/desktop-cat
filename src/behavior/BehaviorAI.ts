@@ -38,6 +38,7 @@ export class BehaviorAI {
   private clickBurst = 0;
   private clickBurstResetAt = 0;
   private paused = false; // true while user is dragging or a menu is open
+  private reactionTimeLeft = 0;
 
   constructor(movement: Movement, stats: PetStats, personality: Personality, callbacks: BehaviorCallbacks) {
     this.movement = movement;
@@ -182,6 +183,20 @@ export class BehaviorAI {
   /** Main per-frame update. dt in seconds. */
   update(dt: number): void {
     if (this.paused) return;
+
+    if (this.reactionTimeLeft > 0) {
+      this.reactionTimeLeft -= dt;
+      this.movement.vx = 0;
+      this.movement.vy = 0;
+      this.movement.isGrounded = true;
+      if (this.reactionTimeLeft <= 0) {
+        this.activityTimeLeft = 1.0;
+        this.currentActivity = "idle";
+        this.callbacks.onAnimationChange("idle");
+      }
+      return;
+    }
+
     this.jumpCooldown = Math.max(0, this.jumpCooldown - dt);
 
     if (this.pointerMode && this.pointerTarget) {
@@ -352,6 +367,14 @@ export class BehaviorAI {
     return this.currentActivity === "run" || this.currentActivity === "jump";
   }
 
+  finishReaction(): void {
+    if (this.reactionTimeLeft > 0) {
+      this.reactionTimeLeft = 0;
+      this.currentActivity = "idle";
+      this.activityTimeLeft = 1.0;
+    }
+  }
+
   // --- Reactions triggered by user interaction (interrupt current activity) ---
 
   reactToClick(): void {
@@ -362,22 +385,23 @@ export class BehaviorAI {
     }
     this.clickBurst++;
 
+    this.stopForReaction();
+    this.reactionTimeLeft = 0.8;
     if (this.clickBurst >= 4) {
       this.callbacks.onAnimationChange("angry", true);
     } else {
       this.callbacks.onAnimationChange("lookAround", true);
     }
-    this.stopForReaction();
-    this.activityTimeLeft = 1.0;
   }
 
   reactToDoubleClick(): void {
-    this.callbacks.onAnimationChange("happy", true);
     this.stopForReaction();
-    this.activityTimeLeft = 1.5;
+    this.reactionTimeLeft = 1.2;
+    this.callbacks.onAnimationChange("happy", true);
   }
 
   reactToDragStart(): void {
+    this.reactionTimeLeft = 0;
     this.setPaused(true);
     this.callbacks.onAnimationChange("fall", true);
   }
@@ -389,19 +413,20 @@ export class BehaviorAI {
   }
 
   reactToPet(): void {
-    this.callbacks.onAnimationChange("petted", true);
     this.stopForReaction();
-    this.activityTimeLeft = 1.5;
+    this.reactionTimeLeft = 2.0;
+    this.callbacks.onAnimationChange("petted", true);
   }
 
   reactToFeed(): void {
-    this.callbacks.onAnimationChange("eat", true);
     this.stopForReaction();
-    this.activityTimeLeft = 1.5;
+    this.reactionTimeLeft = 2.2;
+    this.callbacks.onAnimationChange("eat", true);
   }
 
   private stopForReaction(): void {
     this.currentActivity = "idle";
     this.movement.vx = 0;
+    this.movement.vy = 0;
   }
 }

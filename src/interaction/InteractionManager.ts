@@ -41,10 +41,37 @@ export class InteractionManager {
       if (!this.dragging && !this.overlayInteractive) this.setClickThrough(true);
     });
 
+    let rightDownPos: { x: number; y: number } | null = null;
+    let lastRightClickTime = 0;
+    const triggerRightClick = (x: number, y: number) => {
+      const now = performance.now();
+      if (now - lastRightClickTime < 300) return;
+      lastRightClickTime = now;
+      this.callbacks.onRightClick(x, y);
+    };
+
     sprite.on("pointerdown", (e: PIXI.FederatedPointerEvent) => this.handlePointerDown(e));
+
+    sprite.on("rightdown", (e: PIXI.FederatedPointerEvent) => {
+      e.preventDefault?.();
+      rightDownPos = { x: e.global.x, y: e.global.y };
+    });
+
+    sprite.on("rightup", (e: PIXI.FederatedPointerEvent) => {
+      e.preventDefault?.();
+      if (rightDownPos) {
+        const dx = Math.abs(e.global.x - rightDownPos.x);
+        const dy = Math.abs(e.global.y - rightDownPos.y);
+        rightDownPos = null;
+        if (dx < 25 && dy < 25) {
+          triggerRightClick(e.global.x, e.global.y);
+        }
+      }
+    });
+
     sprite.on("rightclick", (e: PIXI.FederatedPointerEvent) => {
       e.preventDefault?.();
-      this.callbacks.onRightClick(e.global.x, e.global.y);
+      triggerRightClick(e.global.x, e.global.y);
     });
 
     window.addEventListener("pointermove", (e) => this.handlePointerMove(e));

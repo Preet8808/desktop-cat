@@ -3,21 +3,20 @@ import { FoodType } from "../core/types";
 export interface ContextMenuActions {
   onFeed: (food: FoodType) => void;
   onPet: () => void;
-  onSleep: () => void;
-  onStats: () => void;
-  onSettings: () => void;
-  onQuit: () => void;
+  onSleep?: () => void;
+  onStats?: () => void;
+  onSettings?: () => void;
+  onQuit?: () => void;
 }
 
 /**
- * A tiny, unobtrusive popup menu (not a full app window) opened by clicking
- * or right-clicking the cat. Renders a top-level list; Feed expands into a
- * food submenu inline rather than opening a second window.
+ * A sleek, modern popup menu opened by right-clicking the cat.
+ * Prominently presents the two requested options: "Feed it" and "Pat it",
+ * with subtle quick-access controls for settings/stats/quit.
  */
 export class ContextMenu {
   private el: HTMLElement;
   private actions: ContextMenuActions;
-  private showingFoodSubmenu = false;
   private onVisibilityChange: (visible: boolean) => void;
 
   constructor(
@@ -36,14 +35,26 @@ export class ContextMenu {
         this.hide();
       }
     });
+
+    document.addEventListener("contextmenu", (e) => {
+      if (!this.el.contains(e.target as Node) && !this.el.classList.contains("hidden")) {
+        this.hide();
+      }
+    });
+
+    window.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !this.el.classList.contains("hidden")) {
+        this.hide();
+      }
+    });
   }
 
   open(x: number, y: number): void {
-    this.showingFoodSubmenu = false;
     this.render();
-    const width = 160;
-    const left = Math.max(4, Math.min(window.innerWidth - width - 4, x));
-    const top = Math.max(4, Math.min(window.innerHeight - 220, y));
+    const width = 165;
+    const height = 120;
+    const left = Math.max(8, Math.min(window.innerWidth - width - 8, x + 8));
+    const top = Math.max(8, Math.min(window.innerHeight - height - 8, y - 40));
     this.el.style.left = `${left}px`;
     this.el.style.top = `${top}px`;
     this.el.classList.remove("hidden");
@@ -51,6 +62,7 @@ export class ContextMenu {
   }
 
   hide(): void {
+    if (this.el.classList.contains("hidden")) return;
     this.el.classList.add("hidden");
     this.onVisibilityChange(false);
   }
@@ -58,67 +70,79 @@ export class ContextMenu {
   private render(): void {
     this.el.innerHTML = "";
 
-    if (this.showingFoodSubmenu) {
-      const foods: { key: FoodType; icon: string; label: string }[] = [
-        { key: "fish", icon: "🐟", label: "Fish" },
-        { key: "milk", icon: "🥛", label: "Milk" },
-        { key: "treat", icon: "🍪", label: "Treat" },
-        { key: "chicken", icon: "🍗", label: "Chicken" },
-      ];
-      for (const food of foods) {
-        this.el.appendChild(
-          this.makeButton(`${food.icon} ${food.label}`, () => {
-            this.hide();
-            this.actions.onFeed(food.key);
-          })
-        );
+    const container = document.createElement("div");
+    container.className = "context-menu-container";
+
+    // Main options: "Feed it" and "Pat it"
+    const feedBtn = document.createElement("button");
+    feedBtn.id = "btn-feed-it";
+    feedBtn.className = "context-option-btn feed-btn";
+    feedBtn.innerHTML = `<span class="option-icon">🍽️</span><span class="option-text">Feed it</span>`;
+    feedBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.hide();
+      this.actions.onFeed("fish");
+    });
+    container.appendChild(feedBtn);
+
+    const patBtn = document.createElement("button");
+    patBtn.id = "btn-pat-it";
+    patBtn.className = "context-option-btn pat-btn";
+    patBtn.innerHTML = `<span class="option-icon">🤚</span><span class="option-text">Pat it</span>`;
+    patBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      this.hide();
+      this.actions.onPet();
+    });
+    container.appendChild(patBtn);
+
+    // Subtle mini-tools footer (Settings, Stats, Quit)
+    if (this.actions.onSettings || this.actions.onStats || this.actions.onQuit) {
+      const footer = document.createElement("div");
+      footer.className = "context-mini-footer";
+
+      if (this.actions.onStats) {
+        const statsBtn = document.createElement("button");
+        statsBtn.className = "mini-tool-btn";
+        statsBtn.title = "View Stats";
+        statsBtn.innerHTML = "📊";
+        statsBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.hide();
+          this.actions.onStats?.();
+        });
+        footer.appendChild(statsBtn);
       }
-      this.el.appendChild(
-        this.makeButton("⬅ Back", () => {
-          this.showingFoodSubmenu = false;
-          this.render();
-        })
-      );
-      return;
+
+      if (this.actions.onSettings) {
+        const settingsBtn = document.createElement("button");
+        settingsBtn.className = "mini-tool-btn";
+        settingsBtn.title = "Settings (Shift+S)";
+        settingsBtn.innerHTML = "⚙️";
+        settingsBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.hide();
+          this.actions.onSettings?.();
+        });
+        footer.appendChild(settingsBtn);
+      }
+
+      if (this.actions.onQuit) {
+        const quitBtn = document.createElement("button");
+        quitBtn.className = "mini-tool-btn quit-tool";
+        quitBtn.title = "Quit";
+        quitBtn.innerHTML = "✖";
+        quitBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.hide();
+          this.actions.onQuit?.();
+        });
+        footer.appendChild(quitBtn);
+      }
+
+      container.appendChild(footer);
     }
 
-    const items: [string, () => void][] = [
-      ["🍽 Feed", () => {
-        this.hide();
-        this.showingFoodSubmenu = true;
-        this.render();
-        this.el.classList.remove("hidden");
-        this.onVisibilityChange(true);
-      }],
-      ["🤚 Pet", () => {
-        this.hide();
-        this.actions.onPet();
-      }],
-      ["😴 Sleep", () => {
-        this.hide();
-        this.actions.onSleep();
-      }],
-      ["📊 Stats", () => {
-        this.hide();
-        this.actions.onStats();
-      }],
-      ["⚙️ Settings", () => {
-        this.hide();
-        this.actions.onSettings();
-      }],
-      ["✖ Quit", () => {
-        this.actions.onQuit();
-      }],
-    ];
-    for (const [label, handler] of items) {
-      this.el.appendChild(this.makeButton(label, handler));
-    }
-  }
-
-  private makeButton(label: string, onClick: () => void): HTMLButtonElement {
-    const btn = document.createElement("button");
-    btn.textContent = label;
-    btn.addEventListener("click", onClick);
-    return btn;
+    this.el.appendChild(container);
   }
 }

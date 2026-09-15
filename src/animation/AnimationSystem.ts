@@ -24,9 +24,9 @@ const FPS_BY_ANIMATION: Partial<Record<AnimationName, number>> = {
   lookAround: 8,
   happy: 8,
   angry: 8,
-  eat: 6,
+  eat: 5,
   play: 10,
-  petted: 6,
+  petted: 5,
 };
 
 const NON_LOOPING: Set<AnimationName> = new Set([

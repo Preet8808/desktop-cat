@@ -48,10 +48,21 @@ async function main() {
     canvas.style.visibility = visible ? "visible" : "hidden";
     if (!visible) setOverlayInteractive(false);
   };
+
+  // Prevent browser context menu so our custom cat menu shows cleanly
+  window.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+  });
+
   window.addEventListener("keydown", (event) => {
-    if (event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey && event.key.toLowerCase() === "n") {
-      event.preventDefault();
-      setCatVisible(!catVisible);
+    if (event.shiftKey && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (event.key.toLowerCase() === "n") {
+        event.preventDefault();
+        setCatVisible(!catVisible);
+      } else if (event.key.toLowerCase() === "s") {
+        event.preventDefault();
+        settingsWindow.open();
+      }
     }
   });
 
@@ -74,8 +85,7 @@ async function main() {
     onAnimationChange: (anim: AnimationName, once) => {
       if (once) {
         animationSystem.playOnce(anim, () => {
-          // After a one-shot reaction, fall back to idle; BehaviorAI's own
-          // ticking will pick the next real activity shortly after.
+          behavior.finishReaction();
           animationSystem.play("idle");
         });
       } else {
@@ -156,7 +166,10 @@ async function main() {
       if (hasTauri) void appWindow.close();
       else window.close();
     },
-  }, "context-menu", setOverlayInteractive);
+  }, "context-menu", (visible: boolean) => {
+    behavior.setPaused(visible);
+    setOverlayInteractive(visible);
+  });
 
   const statsPanel = new StatsPanel("stats-panel", setOverlayInteractive);
 
