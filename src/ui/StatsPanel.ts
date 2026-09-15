@@ -42,10 +42,10 @@ export class StatsPanel {
     this.el.appendChild(title);
 
     const rows: [string, number][] = [
-      ["🍖 Hunger", stats.hunger],
-      ["😊 Happiness", stats.happiness],
-      ["⚡ Energy", stats.energy],
-      ["💗 Affection", stats.affection],
+      ["Hunger", stats.hunger],
+      ["Happiness", stats.happiness],
+      ["Energy", stats.energy],
+      ["Affection", stats.affection],
     ];
     for (const [label, value] of rows) {
       const row = document.createElement("div");

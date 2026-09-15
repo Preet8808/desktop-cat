@@ -19,11 +19,11 @@ You can download the Windows executable directly to run Desktop Cat on your PC:
    - **Portable Version**: `Desktop Cat.exe` (Standalone portable executable, no install required — just double click and run!)
 3. Run the application and enjoy your new desktop companion!
 
-## ✨ Features & Interactions
+## Features & Interactions
 
 - **Right-Click Menu**: Right-click on the cat to open the context menu with two primary actions:
-  - **🍽️ Feed it**: Gives the cat food! Plays the full 8-frame eating animation with a bowl, crumbs, and munching sound effects. Restores hunger and boosts affection.
-  - **🤚 Pat it**: Pets the cat! Plays the 8-frame head-patting animation with gentle petting, purring, floating hearts, and sparkles. Boosts affection and happiness.
+  - **Feed it**: Gives the cat food! Plays the full 8-frame eating animation with a bowl, crumbs, and munching sound effects. Restores hunger and boosts affection.
+  - **Pat it**: Pets the cat! Plays the 8-frame head-patting animation with gentle petting, purring, floating hearts, and sparkles. Boosts affection and happiness.
   - **Uninterrupted Animations**: A dedicated reaction lock ensures eating and petting animations play completely without being canceled by cursor movements.
 - **Hotkeys & Controls**:
   - **Left-Click**: Cat looks around or reacts curiously.

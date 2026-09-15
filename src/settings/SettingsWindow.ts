@@ -118,7 +118,7 @@ export class SettingsWindow {
     this.el.appendChild(this.toggleRow("Start with computer", this.current.startWithComputer, (v) => this.update({ startWithComputer: v })));
 
     const resetBtn = document.createElement("button");
-    resetBtn.textContent = "🔄 Reset Pet";
+    resetBtn.textContent = "Reset Pet";
     resetBtn.style.marginTop = "8px";
     resetBtn.addEventListener("click", () => {
       if (confirm("Reset all pet data? This cannot be undone.")) {

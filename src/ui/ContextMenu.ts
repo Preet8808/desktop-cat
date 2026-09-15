@@ -10,9 +10,8 @@ export interface ContextMenuActions {
 }
 
 /**
- * A sleek, modern popup menu opened by right-clicking the cat.
- * Prominently presents the two requested options: "Feed it" and "Pat it",
- * with subtle quick-access controls for settings/stats/quit.
+ * A clean, modern popup menu opened by right-clicking the cat.
+ * Displays "Feed it" and "Pat it" without any emojis.
  */
 export class ContextMenu {
   private el: HTMLElement;
@@ -51,10 +50,10 @@ export class ContextMenu {
 
   open(x: number, y: number): void {
     this.render();
-    const width = 165;
-    const height = 120;
+    const width = 160;
+    const height = 110;
     const left = Math.max(8, Math.min(window.innerWidth - width - 8, x + 8));
-    const top = Math.max(8, Math.min(window.innerHeight - height - 8, y - 40));
+    const top = Math.max(8, Math.min(window.innerHeight - height - 8, y - 35));
     this.el.style.left = `${left}px`;
     this.el.style.top = `${top}px`;
     this.el.classList.remove("hidden");
@@ -73,11 +72,11 @@ export class ContextMenu {
     const container = document.createElement("div");
     container.className = "context-menu-container";
 
-    // Main options: "Feed it" and "Pat it"
+    // Main options: "Feed it" and "Pat it" (no emojis)
     const feedBtn = document.createElement("button");
     feedBtn.id = "btn-feed-it";
     feedBtn.className = "context-option-btn feed-btn";
-    feedBtn.innerHTML = `<span class="option-icon">🍽️</span><span class="option-text">Feed it</span>`;
+    feedBtn.innerHTML = `<span class="option-text">Feed it</span>`;
     feedBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.hide();
@@ -88,7 +87,7 @@ export class ContextMenu {
     const patBtn = document.createElement("button");
     patBtn.id = "btn-pat-it";
     patBtn.className = "context-option-btn pat-btn";
-    patBtn.innerHTML = `<span class="option-icon">🤚</span><span class="option-text">Pat it</span>`;
+    patBtn.innerHTML = `<span class="option-text">Pat it</span>`;
     patBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       this.hide();
@@ -96,7 +95,7 @@ export class ContextMenu {
     });
     container.appendChild(patBtn);
 
-    // Subtle mini-tools footer (Settings, Stats, Quit)
+    // Mini-tools footer: Stats, Settings, Quit (clean text, no emojis)
     if (this.actions.onSettings || this.actions.onStats || this.actions.onQuit) {
       const footer = document.createElement("div");
       footer.className = "context-mini-footer";
@@ -105,7 +104,7 @@ export class ContextMenu {
         const statsBtn = document.createElement("button");
         statsBtn.className = "mini-tool-btn";
         statsBtn.title = "View Stats";
-        statsBtn.innerHTML = "📊";
+        statsBtn.textContent = "Stats";
         statsBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           this.hide();
@@ -118,7 +117,7 @@ export class ContextMenu {
         const settingsBtn = document.createElement("button");
         settingsBtn.className = "mini-tool-btn";
         settingsBtn.title = "Settings (Shift+S)";
-        settingsBtn.innerHTML = "⚙️";
+        settingsBtn.textContent = "Settings";
         settingsBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           this.hide();
@@ -131,7 +130,7 @@ export class ContextMenu {
         const quitBtn = document.createElement("button");
         quitBtn.className = "mini-tool-btn quit-tool";
         quitBtn.title = "Quit";
-        quitBtn.innerHTML = "✖";
+        quitBtn.textContent = "Quit";
         quitBtn.addEventListener("click", (e) => {
           e.stopPropagation();
           this.hide();
