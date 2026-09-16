@@ -15,15 +15,17 @@ You can download the Windows executable directly to run Desktop Cat on your PC:
 
 1. Go to the [**Releases**](../../releases) tab of this repository.
 2. Download either:
-   - **Installer**: `Desktop Cat_0.1.1_x64-setup.exe` or `Desktop Cat_0.1.1_x64_en-US.msi` (Windows installer)
+   - **Installer**: `Desktop Cat_1.1.1_x64-setup.exe` or `Desktop Cat_1.1.1_x64_en-US.msi` (Windows installer)
    - **Portable Version**: `Desktop Cat.exe` (Standalone portable executable, no install required — just double click and run!)
 3. Run the application and enjoy your new desktop companion!
 
 ## Features & Interactions
 
-- **Right-Click Menu**: Right-click on the cat to open the context menu with two primary actions:
+### 🐾 Roaming Pet Mode
+- **Right-Click Menu**: Right-click on the cat to open the context menu:
   - **Feed it**: Gives the cat food! Plays the full 8-frame eating animation with a bowl, crumbs, and munching sound effects. Restores hunger and boosts affection.
   - **Pat it**: Pets the cat! Plays the 8-frame head-patting animation with gentle petting, purring, floating hearts, and sparkles. Boosts affection and happiness.
+  - **Bongo Cat Mode**: Switch seamlessly into Bongo Cat mode.
   - **Uninterrupted Animations**: A dedicated reaction lock ensures eating and petting animations play completely without being canceled by cursor movements.
 - **Hotkeys & Controls**:
   - **Left-Click**: Cat looks around or reacts curiously.
@@ -32,6 +34,16 @@ You can download the Windows executable directly to run Desktop Cat on your PC:
   - `Shift + S`: Open Settings (personality, size, speed, sounds).
   - `Shift + N`: Hide/Show the cat.
   - **System Tray**: Access Show, Hide, Settings, and Quit options from the taskbar tray.
+
+### 🎹 Bongo Cat Mode (New in v1.1.1!)
+- **Global Keyboard Tracing**: Types along with you across any application! When you press any key on your physical keyboard, Bongo Cat's paw dynamically reaches directly to that exact key with accurate inverse kinematics while the keycap glows.
+- **Global Mouse Button Tracing**: Detects left and right mouse button clicks in real time with illuminating button highlights.
+- **Adjustable Size & Margins**:
+  - **Mouse Wheel Zoom**: Hover cursor over Bongo Cat and scroll the wheel to smoothly scale the cat from 35% up to 220%.
+  - **Quick Preset Cycler**: Right-click Bongo Cat and click "Size: [Preset]" to cycle between `Tiny (45%)`, `Small (65%)`, `Normal (100%)`, and `Large (135%)`.
+  - **Settings Slider**: Fine-tune the "Bongo Cat Size" slider in the Settings window.
+- **Drag & Anchor**: Left-click and drag Bongo Cat anywhere on screen. Its position and size are automatically persisted across launches.
+- **Quick Switch**: Right-click Bongo Cat and select "Desktop Pet Mode" to switch back to the roaming cat anytime.
 
 ---
 

@@ -1,6 +1,6 @@
 [package]
 name = "desktop-cat"
-version = "0.1.0"
+version = "1.1.1"
 description = "A cute animated desktop pet cat"
 edition = "2021"
 
