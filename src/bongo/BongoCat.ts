@@ -310,9 +310,11 @@ export class BongoCat {
     const nu = u - 0.5;
     const nv = v - 0.5;
 
-    // Perspective mapping across the mousepad
-    this.targetMouseX = 205.0 + nu * 70.0 - nv * 15.0;
-    this.targetMouseY = 335.0 + nu * 15.0 + nv * 55.0;
+    // Gentle, natural slide range across the mousepad:
+    // Left-right moves along the perspective axis of the mousepad (~±18px)
+    // Forward-back moves along the depth axis (~±12px)
+    this.targetMouseX = 205.0 + nu * 36.0 - nv * 8.0;
+    this.targetMouseY = 335.0 + nu * 8.0 + nv * 24.0;
   }
 
   private updateMouseTransform(): void {
@@ -320,11 +322,14 @@ export class BongoCat {
     const dy = this.targetMouseY - this.curMouseY;
 
     if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
-      this.curMouseX += dx * 0.35;
-      this.curMouseY += dy * 0.35;
+      // Smooth natural easing
+      this.curMouseX += dx * 0.22;
+      this.curMouseY += dy * 0.22;
 
-      const shoulderX = 268.0;
-      const shoulderY = 145.0;
+      // Small organic shoulder translation following arm motion
+      const shoulderX = 268.0 + (this.curMouseX - 205.0) * 0.15;
+      const shoulderY = 145.0 + (this.curMouseY - 335.0) * 0.12;
+
       const vx = this.curMouseX - shoulderX;
       const vy = this.curMouseY - shoulderY;
 
@@ -334,10 +339,13 @@ export class BongoCat {
       const restDist = 200.1724;
       const restAngle = 1.94364;
 
-      const rot = angle - restAngle;
-      const scaleY = dist / restDist;
-      const scaleX = 1.0 + (scaleY - 1.0) * 0.2;
+      // Damped rotation so mouse stays upright and natural
+      const rot = (angle - restAngle) * 0.50;
+      const scaleY = 1.0 + (dist / restDist - 1.0) * 0.50;
+      const scaleX = 1.0;
 
+      this.mouseContainer.pivot.set(268, 145);
+      this.mouseContainer.position.set(shoulderX, shoulderY);
       this.mouseContainer.rotation = rot;
       this.mouseContainer.scale.set(scaleX, scaleY);
     }
