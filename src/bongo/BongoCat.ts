@@ -15,6 +15,8 @@ export class BongoCat {
   private keyHighlight: PIXI.Graphics;
   private pawUpSprite: PIXI.Sprite;
   private pawDownSprite: PIXI.Sprite;
+  private mouseContainer: PIXI.Container;
+  private mouseArmSprite: PIXI.Sprite;
   private mouseLeftSprite: PIXI.Sprite;
   private mouseRightSprite: PIXI.Sprite;
 
@@ -29,6 +31,13 @@ export class BongoCat {
   private unlistenKey: UnlistenFn | null = null;
   private unlistenMouse: UnlistenFn | null = null;
 
+  // Mouse kinematics state
+  private curMouseX = 205.0;
+  private curMouseY = 335.0;
+  private targetMouseX = 205.0;
+  private targetMouseY = 335.0;
+  private animFrameId: number | null = null;
+
   private constructor(
     container: PIXI.Container,
     sprites: {
@@ -36,6 +45,8 @@ export class BongoCat {
       keyHighlight: PIXI.Graphics;
       pawUp: PIXI.Sprite;
       pawDown: PIXI.Sprite;
+      mouseContainer: PIXI.Container;
+      mouseArm: PIXI.Sprite;
       mouseLeft: PIXI.Sprite;
       mouseRight: PIXI.Sprite;
     },
@@ -49,6 +60,8 @@ export class BongoCat {
     this.keyHighlight = sprites.keyHighlight;
     this.pawUpSprite = sprites.pawUp;
     this.pawDownSprite = sprites.pawDown;
+    this.mouseContainer = sprites.mouseContainer;
+    this.mouseArmSprite = sprites.mouseArm;
     this.mouseLeftSprite = sprites.mouseLeft;
     this.mouseRightSprite = sprites.mouseRight;
     this.callbacks = callbacks;
@@ -70,6 +83,7 @@ export class BongoCat {
     const baseTex = await PIXI.Assets.load("/sprites/bongo/bongo_base.png");
     const pawUpTex = await PIXI.Assets.load("/sprites/bongo/paw_up.png");
     const pawDownTex = await PIXI.Assets.load("/sprites/bongo/paw_down.png");
+    const mouseArmTex = await PIXI.Assets.load("/sprites/bongo/mouse_arm.png");
     const mouseLeftTex = await PIXI.Assets.load("/sprites/bongo/mouse_click_left.png");
     const mouseRightTex = await PIXI.Assets.load("/sprites/bongo/mouse_click_right.png");
 
@@ -79,6 +93,9 @@ export class BongoCat {
     const keyHighlight = new PIXI.Graphics();
     const pawUpSprite = new PIXI.Sprite(pawUpTex);
     const pawDownSprite = new PIXI.Sprite(pawDownTex);
+
+    const mouseContainer = new PIXI.Container();
+    const mouseArmSprite = new PIXI.Sprite(mouseArmTex);
     const mouseLeftSprite = new PIXI.Sprite(mouseLeftTex);
     const mouseRightSprite = new PIXI.Sprite(mouseRightTex);
 
@@ -86,11 +103,19 @@ export class BongoCat {
     mouseLeftSprite.visible = false;
     mouseRightSprite.visible = false;
 
-    // Layer order: base -> key highlight -> mouse clicks -> paw
+    // Mouse container hierarchy: arm/paw/mouse base -> left/right click overlays
+    mouseContainer.addChild(mouseArmSprite);
+    mouseContainer.addChild(mouseLeftSprite);
+    mouseContainer.addChild(mouseRightSprite);
+
+    // Shoulder pivot in 870x469 coordinate space
+    mouseContainer.pivot.set(268, 145);
+    mouseContainer.position.set(268, 145);
+
+    // Layer order: base -> key highlight -> moving mouse container -> paw up -> paw down
     container.addChild(baseSprite);
     container.addChild(keyHighlight);
-    container.addChild(mouseLeftSprite);
-    container.addChild(mouseRightSprite);
+    container.addChild(mouseContainer);
     container.addChild(pawUpSprite);
     container.addChild(pawDownSprite);
 
@@ -101,6 +126,8 @@ export class BongoCat {
         keyHighlight,
         pawUp: pawUpSprite,
         pawDown: pawDownSprite,
+        mouseContainer,
+        mouseArm: mouseArmSprite,
         mouseLeft: mouseLeftSprite,
         mouseRight: mouseRightSprite,
       },
@@ -118,6 +145,7 @@ export class BongoCat {
       this.attachTauriListeners();
     }
     this.attachWindowFallbackListeners();
+    this.startMouseLoop();
   }
 
   public deactivate(): void {
@@ -126,6 +154,7 @@ export class BongoCat {
       void invoke("set_bongo_active", { active: false }).catch(() => {});
     }
     this.cleanupListeners();
+    this.stopMouseLoop();
   }
 
   public getBounds(): PIXI.Rectangle {
@@ -270,6 +299,63 @@ export class BongoCat {
           this.mouseRightTimer = null;
         }, 60);
       }
+    }
+  }
+
+  public setCursorPosition(screenX: number, screenY: number): void {
+    const sw = window.screen?.width || window.innerWidth || 1920;
+    const sh = window.screen?.height || window.innerHeight || 1080;
+    const u = Math.max(0, Math.min(1, screenX / sw));
+    const v = Math.max(0, Math.min(1, screenY / sh));
+    const nu = u - 0.5;
+    const nv = v - 0.5;
+
+    // Perspective mapping across the mousepad
+    this.targetMouseX = 205.0 + nu * 70.0 - nv * 15.0;
+    this.targetMouseY = 335.0 + nu * 15.0 + nv * 55.0;
+  }
+
+  private updateMouseTransform(): void {
+    const dx = this.targetMouseX - this.curMouseX;
+    const dy = this.targetMouseY - this.curMouseY;
+
+    if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
+      this.curMouseX += dx * 0.35;
+      this.curMouseY += dy * 0.35;
+
+      const shoulderX = 268.0;
+      const shoulderY = 145.0;
+      const vx = this.curMouseX - shoulderX;
+      const vy = this.curMouseY - shoulderY;
+
+      const dist = Math.hypot(vx, vy);
+      const angle = Math.atan2(vy, vx);
+
+      const restDist = 200.1724;
+      const restAngle = 1.94364;
+
+      const rot = angle - restAngle;
+      const scaleY = dist / restDist;
+      const scaleX = 1.0 + (scaleY - 1.0) * 0.2;
+
+      this.mouseContainer.rotation = rot;
+      this.mouseContainer.scale.set(scaleX, scaleY);
+    }
+  }
+
+  private startMouseLoop(): void {
+    if (this.animFrameId) return;
+    const loop = () => {
+      this.updateMouseTransform();
+      this.animFrameId = requestAnimationFrame(loop);
+    };
+    this.animFrameId = requestAnimationFrame(loop);
+  }
+
+  private stopMouseLoop(): void {
+    if (this.animFrameId) {
+      cancelAnimationFrame(this.animFrameId);
+      this.animFrameId = null;
     }
   }
 

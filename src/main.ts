@@ -155,6 +155,8 @@ async function main() {
       const position = await invoke<{ x: number; y: number }>("get_cursor_position");
       if (currentMode === "roaming") {
         updatePointerTarget(position.x, position.y);
+      } else if (currentMode === "bongo") {
+        bongoCat.setCursorPosition(position.x, position.y);
       }
       checkHover(position.x, position.y);
     } catch {
@@ -167,6 +169,8 @@ async function main() {
     if (!hasTauri) {
       if (currentMode === "roaming") {
         updatePointerTarget(event.clientX, event.clientY);
+      } else if (currentMode === "bongo") {
+        bongoCat.setCursorPosition(event.clientX, event.clientY);
       }
       checkHover(event.clientX, event.clientY);
     }
