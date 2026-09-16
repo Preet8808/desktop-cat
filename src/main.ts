@@ -1,6 +1,7 @@
 import * as PIXI from "pixi.js";
 import { invoke } from "@tauri-apps/api/tauri";
 import { appWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
 import { AnimationSystem } from "./animation/AnimationSystem";
 import { Movement } from "./physics/Movement";
 import { PetStats } from "./core/PetStats";
@@ -11,7 +12,8 @@ import { ContextMenu } from "./ui/ContextMenu";
 import { StatsPanel } from "./ui/StatsPanel";
 import { SettingsWindow } from "./settings/SettingsWindow";
 import { AudioManager } from "./audio/AudioManager";
-import { AnimationName, FoodType, SaveData, Settings } from "./core/types";
+import { BongoCat } from "./bongo/BongoCat";
+import { AnimationName, AppMode, FoodType, SaveData, Settings } from "./core/types";
 
 async function main() {
   const hasTauri = typeof (window as any).__TAURI__ !== "undefined";
@@ -32,6 +34,11 @@ async function main() {
   stats.applyElapsedTime(elapsedSeconds);
 
   const settings: Settings = { ...save.settings };
+  let currentMode: AppMode = save.mode || "roaming";
+  let bongoPos = save.bongoPosition || {
+    x: Math.max(50, window.innerWidth - 450),
+    y: Math.max(50, window.innerHeight - 250),
+  };
 
   // --- PixiJS setup ---
   const canvas = document.getElementById("cat-canvas") as HTMLCanvasElement;
@@ -70,6 +77,28 @@ async function main() {
   animationSystem.sprite.scale.set(settings.catSize * 2);
   app.stage.addChild(animationSystem.sprite);
 
+  // --- Bongo Cat setup ---
+  let contextMenu!: ContextMenu;
+
+  const bongoCat = await BongoCat.create(
+    {
+      onRightClick: (x, y) => contextMenu.open(x, y),
+      onPositionChange: (x, y) => {
+        bongoPos = { x, y };
+        persist();
+      },
+      onScaleChange: (scale) => {
+        settings.bongoSize = scale;
+        settingsWindow.setValues(settings);
+        persist();
+      },
+    },
+    bongoPos.x,
+    bongoPos.y,
+    settings.bongoSize || 1.0
+  );
+  app.stage.addChild(bongoCat.container);
+
   const groundY = window.innerHeight - 80;
   const movement = new Movement(save.position.x || 200, save.position.y || groundY);
   movement.setGroundY(groundY);
@@ -103,6 +132,20 @@ async function main() {
     movement.setGroundY(window.innerHeight - 80);
   });
 
+  const checkHover = (cursorX: number, cursorY: number) => {
+    if (currentMode === "bongo") {
+      const bounds = bongoCat.getBounds();
+      const isHovered =
+        cursorX >= bounds.x &&
+        cursorX <= bounds.x + bounds.width &&
+        cursorY >= bounds.y &&
+        cursorY <= bounds.y + bounds.height;
+      setOverlayInteractive(isHovered);
+    } else {
+      interactionManager?.checkCursorHover(cursorX, cursorY);
+    }
+  };
+
   let cursorPollInFlight = false;
   const updatePointerTarget = (x: number, y: number) => behavior.setPointerTarget(x, y);
   const pollCursor = async () => {
@@ -110,8 +153,10 @@ async function main() {
     cursorPollInFlight = true;
     try {
       const position = await invoke<{ x: number; y: number }>("get_cursor_position");
-      updatePointerTarget(position.x, position.y);
-      interactionManager?.checkCursorHover(position.x, position.y);
+      if (currentMode === "roaming") {
+        updatePointerTarget(position.x, position.y);
+      }
+      checkHover(position.x, position.y);
     } catch {
       // Cursor polling is unavailable while running outside the Tauri window.
     } finally {
@@ -120,8 +165,10 @@ async function main() {
   };
   window.addEventListener("mousemove", (event) => {
     if (!hasTauri) {
-      updatePointerTarget(event.clientX, event.clientY);
-      interactionManager?.checkCursorHover(event.clientX, event.clientY);
+      if (currentMode === "roaming") {
+        updatePointerTarget(event.clientX, event.clientY);
+      }
+      checkHover(event.clientX, event.clientY);
     }
   });
   window.setInterval(() => void pollCursor(), 35);
@@ -135,9 +182,6 @@ async function main() {
       if (hasTauri) void appWindow.startDragging().catch(() => {});
     },
     onDragMove: (x, y) => {
-      // In-window sprite dragging fallback for non-Tauri (browser) dev mode;
-      // when running under Tauri, native window dragging (above) takes over
-      // and the sprite simply stays anchored while the OS window moves.
       if (!hasTauri) {
         movement.x = x;
         movement.y = y;
@@ -147,8 +191,23 @@ async function main() {
     onRightClick: (x, y) => contextMenu.open(x, y),
   });
 
+  // --- Mode manager ---
+  const setAppMode = (mode: AppMode): void => {
+    currentMode = mode;
+    contextMenu.setMode(mode);
+    if (mode === "bongo") {
+      behavior.setPaused(true);
+      animationSystem.sprite.visible = false;
+      bongoCat.activate();
+    } else {
+      bongoCat.deactivate();
+      animationSystem.sprite.visible = true;
+      behavior.setPaused(false);
+    }
+  };
+
   // --- UI: context menu, stats panel, settings ---
-  const contextMenu = new ContextMenu({
+  contextMenu = new ContextMenu({
     onFeed: (food: FoodType) => {
       stats.feed();
       behavior.reactToFeed();
@@ -166,6 +225,33 @@ async function main() {
     onSettings: () => {
       settingsWindow.open();
     },
+    onToggleMode: () => {
+      const nextMode = currentMode === "roaming" ? "bongo" : "roaming";
+      setAppMode(nextMode);
+      persist();
+    },
+    onCycleBongoSize: () => {
+      const presets = [0.65, 1.0, 1.35, 0.45];
+      const cur = settings.bongoSize || 1.0;
+      let next = presets[0];
+      for (let i = 0; i < presets.length; i++) {
+        if (Math.abs(cur - presets[i]) < 0.1) {
+          next = presets[(i + 1) % presets.length];
+          break;
+        }
+      }
+      settings.bongoSize = next;
+      bongoCat.setScale(next);
+      settingsWindow.setValues(settings);
+      persist();
+    },
+    getBongoSizeLabel: () => {
+      const s = settings.bongoSize || 1.0;
+      if (s <= 0.5) return "Tiny (45%)";
+      if (s <= 0.8) return "Small (65%)";
+      if (s <= 1.15) return "Normal (100%)";
+      return "Large (135%)";
+    },
     onQuit: () => {
       if (hasTauri) void appWindow.close();
       else window.close();
@@ -175,6 +261,9 @@ async function main() {
     setOverlayInteractive(visible);
   });
 
+  // Apply loaded mode
+  setAppMode(currentMode);
+
   const statsPanel = new StatsPanel("stats-panel", setOverlayInteractive);
 
   const settingsWindow = new SettingsWindow(
@@ -182,6 +271,7 @@ async function main() {
       onChange: (updated) => {
         Object.assign(settings, updated);
         animationSystem.sprite.scale.set(settings.catSize * 2);
+        bongoCat.setScale(settings.bongoSize || 1.0);
         movement.setConfig({
           maxWalkSpeed: 60 * settings.movementSpeed,
           maxRunSpeed: 160 * settings.movementSpeed,
@@ -191,6 +281,7 @@ async function main() {
         if (hasTauri) {
           void appWindow.setAlwaysOnTop(settings.alwaysOnTop).catch(() => {});
         }
+        persist();
       },
       onReset: () => {
         stats.data = { hunger: 80, happiness: 80, energy: 90, affection: 50 };
@@ -204,7 +295,6 @@ async function main() {
 
   // Tray "Settings" click emits this event (see src-tauri/src/main.rs).
   if (hasTauri) {
-    const { listen } = await import("@tauri-apps/api/event");
     void listen("open-settings", () => settingsWindow.open());
   }
 
@@ -215,11 +305,12 @@ async function main() {
     const dt = Math.min(0.1, (now - lastTime) / 1000); // clamp to avoid huge steps after a tab/OS freeze
     lastTime = now;
 
-    behavior.update(dt);
-    stats.tick(dt, { isActive: behavior.isActive, isSleeping: behavior.isSleeping });
-
-    animationSystem.sprite.x = movement.x;
-    animationSystem.sprite.y = movement.y;
+    if (currentMode === "roaming") {
+      behavior.update(dt);
+      stats.tick(dt, { isActive: behavior.isActive, isSleeping: behavior.isSleeping });
+      animationSystem.sprite.x = movement.x;
+      animationSystem.sprite.y = movement.y;
+    }
 
     statsPanel.update(settings.catName, stats.data);
   });
@@ -233,6 +324,8 @@ async function main() {
       position: { x: movement.x, y: movement.y },
       settings,
       lastActiveTimestamp: Date.now(),
+      mode: currentMode,
+      bongoPosition: bongoPos,
     };
     void saveManager.save(data);
   };

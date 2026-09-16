@@ -96,6 +96,12 @@ html, body {
   color: #fff;
 }
 
+.bongo-btn:hover {
+  background: linear-gradient(135deg, rgba(86, 204, 242, 0.25), rgba(47, 128, 237, 0.3));
+  border-color: rgba(86, 204, 242, 0.5);
+  color: #fff;
+}
+
 .context-mini-footer {
   display: flex;
   justify-content: space-between;

@@ -74,9 +74,9 @@ export class SettingsWindow {
       })
     );
 
-    // Size
+    // Roaming Cat Size
     this.el.appendChild(
-      this.row("Size", () => {
+      this.row("Cat Size", () => {
         const input = document.createElement("input");
         input.type = "range";
         input.min = "0.5";
@@ -84,6 +84,20 @@ export class SettingsWindow {
         input.step = "0.1";
         input.value = String(this.current.catSize);
         input.addEventListener("input", () => this.update({ catSize: parseFloat(input.value) }));
+        return input;
+      })
+    );
+
+    // Bongo Cat Size
+    this.el.appendChild(
+      this.row("Bongo Cat Size", () => {
+        const input = document.createElement("input");
+        input.type = "range";
+        input.min = "0.4";
+        input.max = "2.0";
+        input.step = "0.05";
+        input.value = String(this.current.bongoSize ?? 1.0);
+        input.addEventListener("input", () => this.update({ bongoSize: parseFloat(input.value) }));
         return input;
       })
     );

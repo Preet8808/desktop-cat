@@ -32,6 +32,7 @@ export interface PetStatsData {
 export interface Settings {
   catName: string;
   catSize: number; // scale multiplier, e.g. 1.0
+  bongoSize: number; // bongo cat scale multiplier, e.g. 1.0
   movementSpeed: number; // px/sec multiplier
   soundEnabled: boolean;
   speechEnabled: boolean;
@@ -40,6 +41,8 @@ export interface Settings {
   personality: Personality;
 }
 
+export type AppMode = "roaming" | "bongo";
+
 export interface SaveData {
   name: string;
   personality: Personality;
@@ -47,11 +50,14 @@ export interface SaveData {
   position: { x: number; y: number };
   settings: Settings;
   lastActiveTimestamp: number;
+  mode?: AppMode;
+  bongoPosition?: { x: number; y: number };
 }
 
 export const DEFAULT_SETTINGS: Settings = {
   catName: "Mochi",
   catSize: 1.0,
+  bongoSize: 1.0,
   movementSpeed: 1.0,
   soundEnabled: false,
   speechEnabled: true,

@@ -72,6 +72,8 @@ export class SaveManager {
       position: { x: 200, y: 400 },
       settings: { ...DEFAULT_SETTINGS },
       lastActiveTimestamp: Date.now(),
+      mode: "roaming",
+      bongoPosition: { x: 200, y: 300 },
     };
   }
 
@@ -96,8 +98,18 @@ export class SaveManager {
         x: this.numOr(partial.position?.x, fallback.position.x),
         y: this.numOr(partial.position?.y, fallback.position.y),
       },
-      settings: { ...fallback.settings, ...savedSettings, personality: settingsPersonality },
+      settings: {
+        ...fallback.settings,
+        ...savedSettings,
+        personality: settingsPersonality,
+        bongoSize: this.numOr(savedSettings.bongoSize, fallback.settings.bongoSize),
+      },
       lastActiveTimestamp: this.numOr(partial.lastActiveTimestamp, Date.now()),
+      mode: partial.mode === "bongo" ? "bongo" : "roaming",
+      bongoPosition: {
+        x: this.numOr(partial.bongoPosition?.x, 200),
+        y: this.numOr(partial.bongoPosition?.y, 300),
+      },
     };
   }
 
