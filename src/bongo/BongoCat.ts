@@ -37,6 +37,7 @@ export class BongoCat {
   private targetMouseX = 205.0;
   private targetMouseY = 335.0;
   private animFrameId: number | null = null;
+  private lastAnimTime = 0;
 
   private constructor(
     container: PIXI.Container,
@@ -109,8 +110,8 @@ export class BongoCat {
     mouseContainer.addChild(mouseRightSprite);
 
     // Shoulder pivot in 870x469 coordinate space
-    mouseContainer.pivot.set(268, 145);
-    mouseContainer.position.set(268, 145);
+    mouseContainer.pivot.set(255, 160);
+    mouseContainer.position.set(255, 160);
 
     // Layer order: base -> key highlight -> moving mouse container -> paw up -> paw down
     container.addChild(baseSprite);
@@ -310,25 +311,27 @@ export class BongoCat {
     const nu = u - 0.5;
     const nv = v - 0.5;
 
-    // Gentle, natural slide range across the mousepad:
-    // Left-right moves along the perspective axis of the mousepad (~±18px)
-    // Forward-back moves along the depth axis (~±12px)
-    this.targetMouseX = 205.0 + nu * 36.0 - nv * 8.0;
-    this.targetMouseY = 335.0 + nu * 8.0 + nv * 24.0;
+    // Smooth, natural perspective slide across the mousepad
+    this.targetMouseX = 205.0 + nu * 44.0 - nv * 8.0;
+    this.targetMouseY = 335.0 + nu * 10.0 + nv * 28.0;
   }
 
-  private updateMouseTransform(): void {
+  private updateMouseTransform(currentTime: number): void {
+    const dt = this.lastAnimTime ? Math.min(0.05, (currentTime - this.lastAnimTime) / 1000) : 0.016;
+    this.lastAnimTime = currentTime;
+
     const dx = this.targetMouseX - this.curMouseX;
     const dy = this.targetMouseY - this.curMouseY;
 
-    if (Math.abs(dx) > 0.05 || Math.abs(dy) > 0.05) {
-      // Smooth natural easing
-      this.curMouseX += dx * 0.22;
-      this.curMouseY += dy * 0.22;
+    if (Math.abs(dx) > 0.005 || Math.abs(dy) > 0.005) {
+      // Exponential decay smoothing for frame-rate-independent silky glide
+      const factor = 1 - Math.exp(-24 * dt);
+      this.curMouseX += dx * factor;
+      this.curMouseY += dy * factor;
 
-      // Small organic shoulder translation following arm motion
-      const shoulderX = 268.0 + (this.curMouseX - 205.0) * 0.15;
-      const shoulderY = 145.0 + (this.curMouseY - 335.0) * 0.12;
+      // Organic shoulder translation following arm reach
+      const shoulderX = 255.0 + (this.curMouseX - 205.0) * 0.12;
+      const shoulderY = 160.0 + (this.curMouseY - 335.0) * 0.10;
 
       const vx = this.curMouseX - shoulderX;
       const vy = this.curMouseY - shoulderY;
@@ -336,15 +339,15 @@ export class BongoCat {
       const dist = Math.hypot(vx, vy);
       const angle = Math.atan2(vy, vx);
 
-      const restDist = 200.1724;
-      const restAngle = 1.94364;
+      const restDist = 182.0027;
+      const restAngle = 1.8491;
 
-      // Damped rotation so mouse stays upright and natural
-      const rot = (angle - restAngle) * 0.50;
-      const scaleY = 1.0 + (dist / restDist - 1.0) * 0.50;
-      const scaleX = 1.0;
+      // Natural rotational tracking and subtle scaling along arm axis
+      const rot = angle - restAngle;
+      const scaleY = dist / restDist;
+      const scaleX = 1.0 + (scaleY - 1.0) * 0.15;
 
-      this.mouseContainer.pivot.set(268, 145);
+      this.mouseContainer.pivot.set(255, 160);
       this.mouseContainer.position.set(shoulderX, shoulderY);
       this.mouseContainer.rotation = rot;
       this.mouseContainer.scale.set(scaleX, scaleY);
@@ -353,8 +356,9 @@ export class BongoCat {
 
   private startMouseLoop(): void {
     if (this.animFrameId) return;
-    const loop = () => {
-      this.updateMouseTransform();
+    this.lastAnimTime = performance.now();
+    const loop = (time: number) => {
+      this.updateMouseTransform(time);
       this.animFrameId = requestAnimationFrame(loop);
     };
     this.animFrameId = requestAnimationFrame(loop);
@@ -365,6 +369,7 @@ export class BongoCat {
       cancelAnimationFrame(this.animFrameId);
       this.animFrameId = null;
     }
+    this.lastAnimTime = 0;
   }
 
   private setupInteractions(): void {

@@ -175,7 +175,7 @@ async function main() {
       checkHover(event.clientX, event.clientY);
     }
   });
-  window.setInterval(() => void pollCursor(), 35);
+  window.setInterval(() => void pollCursor(), 10);
 
   // --- Interaction wiring ---
   interactionManager = new InteractionManager(animationSystem.sprite, {
