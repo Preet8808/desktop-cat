@@ -18,7 +18,10 @@ import { AnimationName, AppMode, FoodType, SaveData, Settings } from "./core/typ
 async function main() {
   const hasTauri = typeof (window as any).__TAURI__ !== "undefined";
   let interactionManager: InteractionManager | null = null;
+  let currentOverlayInteractive: boolean | null = null;
   const setOverlayInteractive = (interactive: boolean): void => {
+    if (currentOverlayInteractive === interactive) return;
+    currentOverlayInteractive = interactive;
     interactionManager?.setOverlayInteractive(interactive);
     if (hasTauri) {
       void invoke("set_click_through", { ignore: !interactive }).catch(() => {});

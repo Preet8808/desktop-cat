@@ -29,6 +29,7 @@ export class InteractionManager {
   private overlayInteractive = false;
   private isHovered = false;
   private dragStarted = false;
+  private currentClickThrough: boolean | null = null;
 
   constructor(sprite: PIXI.Sprite, callbacks: InteractionCallbacks) {
     this.sprite = sprite;
@@ -126,6 +127,8 @@ export class InteractionManager {
 
   private setClickThrough(ignore: boolean): void {
     if (!this.hasTauri) return;
+    if (this.currentClickThrough === ignore) return;
+    this.currentClickThrough = ignore;
     void invoke("set_click_through", { ignore }).catch(() => {});
   }
 
