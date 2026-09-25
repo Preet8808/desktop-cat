@@ -526,6 +526,11 @@ export class BongoCat {
       this.mouseRightTimer = null;
     }
     this.pressedKeys.clear();
+    this.pawDownSprite.visible = false;
+    this.pawUpSprite.visible = true;
+    this.keyHighlight.clear();
+    this.mouseLeftSprite.visible = false;
+    this.mouseRightSprite.visible = false;
     if (this.unlistenKey) {
       this.unlistenKey();
       this.unlistenKey = null;

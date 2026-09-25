@@ -13,13 +13,16 @@ export class StatsPanel {
     if (!el) throw new Error(`StatsPanel: element #${elementId} not found`);
     this.el = el;
     this.onVisibilityChange = onVisibilityChange;
-
-    document.addEventListener("click", (e) => {
+    const handleOutsideDismiss = (e: MouseEvent | PointerEvent) => {
       if (performance.now() - this.openedAt < 150) return;
       if (!this.el.contains(e.target as Node) && !this.el.classList.contains("hidden")) {
         this.hide();
       }
-    });
+    };
+
+    document.addEventListener("pointerdown", handleOutsideDismiss);
+    document.addEventListener("click", handleOutsideDismiss);
+    document.addEventListener("contextmenu", handleOutsideDismiss);
 
     window.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && !this.el.classList.contains("hidden")) {

@@ -19,6 +19,18 @@ async function main() {
   const hasTauri = typeof (window as any).__TAURI__ !== "undefined";
   let interactionManager: InteractionManager | null = null;
   let currentOverlayInteractive: boolean | null = null;
+
+  const isAnyOverlayVisible = (): boolean => {
+    const cm = document.getElementById("context-menu");
+    const sw = document.getElementById("settings-window");
+    const sp = document.getElementById("stats-panel");
+    return (
+      (cm !== null && !cm.classList.contains("hidden")) ||
+      (sw !== null && !sw.classList.contains("hidden")) ||
+      (sp !== null && !sp.classList.contains("hidden"))
+    );
+  };
+
   const setOverlayInteractive = (interactive: boolean): void => {
     if (currentOverlayInteractive === interactive) return;
     currentOverlayInteractive = interactive;
@@ -136,13 +148,17 @@ async function main() {
   });
 
   const checkHover = (cursorX: number, cursorY: number) => {
+    if (isAnyOverlayVisible()) {
+      setOverlayInteractive(true);
+      return;
+    }
     if (currentMode === "bongo") {
       const bounds = bongoCat.getBounds();
       const isHovered =
-        cursorX >= bounds.x &&
-        cursorX <= bounds.x + bounds.width &&
-        cursorY >= bounds.y &&
-        cursorY <= bounds.y + bounds.height;
+        cursorX >= bounds.x - 12 &&
+        cursorX <= bounds.x + bounds.width + 12 &&
+        cursorY >= bounds.y - 12 &&
+        cursorY <= bounds.y + bounds.height + 12;
       setOverlayInteractive(isHovered);
     } else {
       interactionManager?.checkCursorHover(cursorX, cursorY);
