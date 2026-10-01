@@ -89,20 +89,38 @@ export class SaveManager {
       name: typeof partial.name === "string" && partial.name.trim() ? partial.name : fallback.name,
       personality,
       stats: {
-        hunger: this.numOr(partial.stats?.hunger, fallback.stats.hunger),
-        happiness: this.numOr(partial.stats?.happiness, fallback.stats.happiness),
-        energy: this.numOr(partial.stats?.energy, fallback.stats.energy),
-        affection: this.numOr(partial.stats?.affection, fallback.stats.affection),
+        hunger: this.numInRange(partial.stats?.hunger, fallback.stats.hunger, 0, 100),
+        happiness: this.numInRange(partial.stats?.happiness, fallback.stats.happiness, 0, 100),
+        energy: this.numInRange(partial.stats?.energy, fallback.stats.energy, 0, 100),
+        affection: this.numInRange(partial.stats?.affection, fallback.stats.affection, 0, 100),
       },
       position: {
-        x: this.numOr(partial.position?.x, fallback.position.x),
-        y: this.numOr(partial.position?.y, fallback.position.y),
+        x: this.numInRange(partial.position?.x, fallback.position.x, -4000, 8000),
+        y: this.numInRange(partial.position?.y, fallback.position.y, -4000, 8000),
       },
       settings: {
         ...fallback.settings,
-        ...savedSettings,
+        // Validate every field individually - spreading raw savedSettings would
+        // let corrupt values (NaN, wrong type) overwrite the validated fallback.
+        catName: typeof savedSettings.catName === "string" && savedSettings.catName.trim()
+          ? savedSettings.catName
+          : fallback.settings.catName,
+        catSize: this.numInRange(savedSettings.catSize, fallback.settings.catSize, 0.25, 4),
+        bongoSize: this.numInRange(savedSettings.bongoSize, fallback.settings.bongoSize, 0.35, 2.5),
+        movementSpeed: this.numInRange(savedSettings.movementSpeed, fallback.settings.movementSpeed, 0.25, 3),
+        soundEnabled: typeof savedSettings.soundEnabled === "boolean"
+          ? savedSettings.soundEnabled
+          : fallback.settings.soundEnabled,
+        speechEnabled: typeof savedSettings.speechEnabled === "boolean"
+          ? savedSettings.speechEnabled
+          : fallback.settings.speechEnabled,
+        alwaysOnTop: typeof savedSettings.alwaysOnTop === "boolean"
+          ? savedSettings.alwaysOnTop
+          : fallback.settings.alwaysOnTop,
+        startWithComputer: typeof savedSettings.startWithComputer === "boolean"
+          ? savedSettings.startWithComputer
+          : fallback.settings.startWithComputer,
         personality: settingsPersonality,
-        bongoSize: this.numOr(savedSettings.bongoSize, fallback.settings.bongoSize),
       },
       lastActiveTimestamp: this.numOr(partial.lastActiveTimestamp, Date.now()),
       mode: partial.mode === "bongo" ? "bongo" : "roaming",
@@ -119,5 +137,10 @@ export class SaveManager {
 
   private numOr(v: unknown, fallback: number): number {
     return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+  }
+
+  /** Like numOr, but also constrains the result to a sane range. */
+  private numInRange(v: unknown, fallback: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, this.numOr(v, fallback)));
   }
 }

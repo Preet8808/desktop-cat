@@ -62,17 +62,17 @@ desktop-cat/
 │   │   ├── PetStats.ts         Hunger/happiness/energy/affection over time
 │   │   └── SaveManager.ts      Load/save via Tauri fs (localStorage fallback)
 │   ├── animation/
-│   │   ├── SpriteGenerator.ts  Procedural placeholder sprite sheets (canvas)
+│   │   ├── animationNames.ts   Single source of truth for animation names
 │   │   └── AnimationSystem.ts  PixiJS AnimatedSprite wrapper, animation switching
 │   ├── physics/
-│   │   └── Movement.ts         Acceleration/friction + gravity/jump integrator
+│   │   └── Movement.ts         Acceleration/friction movement integrator
 │   ├── behavior/
 │   │   ├── Personality.ts      Per-personality activity weights
 │   │   ├── BehaviorAI.ts       Autonomous state machine (the "AI")
 │   ├── interaction/
 │   │   └── InteractionManager.ts  Click / double-click / drag / right-click
 │   ├── ui/
-│   │   ├── ContextMenu.ts      Feed / Pet / Sleep / Stats / Settings / Quit
+│   │   ├── ContextMenu.ts      Feed / Pet / Stats / Settings / Quit
 │   │   └── StatsPanel.ts
 │   ├── settings/
 │   │   └── SettingsWindow.ts
@@ -208,10 +208,19 @@ Drop MP3s into `public/sounds/` named exactly as in `AudioManager.ts`
 
 - The whole app runs off a single PixiJS ticker; there are no additional
   `setInterval` polling loops for animation or physics.
+- The cat roams freely in two dimensions. There is no ground plane: the
+  vertical position is driven directly by `BehaviorAI` (wander steering, cursor
+  follow, and a self-contained jump arc), so the cat is not confined to the
+  bottom of the screen.
 - `Movement`, `PetStats`, and `BehaviorAI` are cheap, allocation-free per
   frame (no per-tick object creation) so idle CPU stays low.
-- Sprite textures are generated once at startup and reused for the life of
+- Sprite textures are loaded once at startup and reused for the life of
   the app — animations only ever swap which pre-built texture array plays.
+- The cursor is polled over IPC at ~40Hz. This is required because the window
+  is click-through and therefore receives no DOM mouse events; it is skipped
+  entirely while the cat is hidden.
+- The stats panel is throttled to ~4Hz and only writes to the DOM when a
+  value actually changes.
 - Autosave runs every 30s on a plain `setInterval`, plus once on window close.
 
 ## Persisted data

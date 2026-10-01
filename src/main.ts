@@ -49,7 +49,11 @@ async function main() {
   stats.applyElapsedTime(elapsedSeconds);
 
   const settings: Settings = { ...save.settings };
-  let currentMode: AppMode = save.mode || "roaming";
+  // Always start in roaming mode. Restoring a persisted Bongo session hid the
+  // cat and paused its behaviour at launch with no visible explanation, which
+  // looked like the pet was broken. Bongo is still persisted so it is restored
+  // when re-entering it within a session.
+  let currentMode: AppMode = "roaming";
   let bongoPos = save.bongoPosition || {
     x: Math.max(50, window.innerWidth - 450),
     y: Math.max(50, window.innerHeight - 250),
@@ -114,9 +118,10 @@ async function main() {
   );
   app.stage.addChild(bongoCat.container);
 
-  const groundY = window.innerHeight - 80;
-  const movement = new Movement(save.position.x || 200, save.position.y || groundY);
-  movement.setGroundY(groundY);
+  // The cat is a free-floating desktop pet: it roams the whole screen rather
+  // than standing on a floor. Vertical position is driven directly by
+  // BehaviorAI (wander/follow/jump arc), so there is no ground plane to pin it.
+  const movement = new Movement(save.position.x || 200, save.position.y || window.innerHeight / 2);
   movement.setConfig({
     maxWalkSpeed: 60 * settings.movementSpeed,
     maxRunSpeed: 160 * settings.movementSpeed,
@@ -144,7 +149,6 @@ async function main() {
 
   window.addEventListener("resize", () => {
     behavior.setScreenSize(window.innerWidth, window.innerHeight);
-    movement.setGroundY(window.innerHeight - 80);
   });
 
   const checkHover = (cursorX: number, cursorY: number) => {
@@ -168,7 +172,7 @@ async function main() {
   let cursorPollInFlight = false;
   const updatePointerTarget = (x: number, y: number) => behavior.setPointerTarget(x, y);
   const pollCursor = async () => {
-    if (!hasTauri || cursorPollInFlight) return;
+    if (!hasTauri || cursorPollInFlight || !catVisible) return;
     cursorPollInFlight = true;
     try {
       const position = await invoke<{ x: number; y: number }>("get_cursor_position");
@@ -184,6 +188,7 @@ async function main() {
       cursorPollInFlight = false;
     }
   };
+
   window.addEventListener("mousemove", (event) => {
     if (!hasTauri) {
       if (currentMode === "roaming") {
@@ -194,7 +199,11 @@ async function main() {
       checkHover(event.clientX, event.clientY);
     }
   });
-  window.setInterval(() => void pollCursor(), 10);
+  // Cursor position must be polled over IPC because the window is click-through
+  // and never receives DOM mouse events. ~40Hz is smooth enough for the cat to
+  // follow and for hover/click-through flips to feel instant, and keeps idle IPC
+  // traffic far below the previous 100Hz.
+  window.setInterval(() => void pollCursor(), 25);
 
   // --- Interaction wiring ---
   interactionManager = new InteractionManager(animationSystem.sprite, {
@@ -202,13 +211,18 @@ async function main() {
     onDoubleClick: () => behavior.reactToDoubleClick(),
     onDragStart: () => {
       behavior.reactToDragStart();
-      if (hasTauri) void appWindow.startDragging().catch(() => {});
+      // Do NOT call appWindow.startDragging() - that moves the whole fullscreen
+      // overlay window, desynchronising movement.x/y from the visual position
+      // and breaking saved position on next launch.
     },
     onDragMove: (x, y) => {
-      if (!hasTauri) {
-        movement.x = x;
-        movement.y = y;
-      }
+      // Clamp while dragging so the cat cannot be dropped outside the window,
+      // which would otherwise leave it permanently off-screen (the next
+      // activity picks clamp, but nothing clamps during the drag itself).
+      const maxX = Math.max(40, window.innerWidth - 40);
+      const maxY = Math.max(40, window.innerHeight - 40);
+      movement.x = Math.max(40, Math.min(maxX, x));
+      movement.y = Math.max(40, Math.min(maxY, y));
     },
     onDragEnd: () => behavior.reactToDragEnd(),
     onRightClick: (x, y) => contextMenu.open(x, y),
@@ -239,9 +253,6 @@ async function main() {
       stats.pet();
       behavior.reactToPet();
     },
-    onSleep: () => {
-      animationSystem.play("sleep");
-    },
     onStats: () => {
       statsPanel.open(movement.x, movement.y, settings.catName, stats.data);
     },
@@ -254,7 +265,10 @@ async function main() {
       persist();
     },
     onCycleBongoSize: () => {
-      const presets = [0.65, 1.0, 1.35, 0.45];
+      // Ordered smallest -> largest so the cycler and the label thresholds in
+      // getBongoSizeLabel stay consistent (the old order jumped 0.65 -> 1.0 ->
+      // 1.35 -> 0.45, so the label could disagree with the value it set).
+      const presets = [0.45, 0.65, 1.0, 1.35];
       const cur = settings.bongoSize || 1.0;
       let next = presets[0];
       for (let i = 0; i < presets.length; i++) {
@@ -328,12 +342,19 @@ async function main() {
     const dt = Math.min(0.1, (now - lastTime) / 1000); // clamp to avoid huge steps after a tab/OS freeze
     lastTime = now;
 
-    if (currentMode === "roaming") {
+    const isRoaming = currentMode === "roaming";
+    if (isRoaming) {
       behavior.update(dt);
-      stats.tick(dt, { isActive: behavior.isActive, isSleeping: behavior.isSleeping });
       animationSystem.sprite.x = movement.x;
-      animationSystem.sprite.y = movement.y;
+      animationSystem.sprite.y = movement.y + behavior.jumpOffset;
     }
+    // Stats always tick, even in Bongo mode, so the pet has needs when you switch
+    // back. But behavior is paused outside roaming, so isActive/isSleeping would
+    // otherwise stay frozen at their last value and skew the decay rates.
+    stats.tick(dt, {
+      isActive: isRoaming && behavior.isActive,
+      isSleeping: isRoaming && behavior.isSleeping,
+    });
 
     statsPanel.update(settings.catName, stats.data);
   });

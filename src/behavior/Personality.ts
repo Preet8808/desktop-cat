@@ -8,7 +8,8 @@ export type Activity =
   | "sleep"
   | "jump"
   | "lookAround"
-  | "stretch";
+  | "stretch"
+  | "follow";
 
 /** Relative weight of each activity for a given personality. Higher = more likely. */
 export const PERSONALITY_WEIGHTS: Record<Personality, Record<Activity, number>> = {
@@ -21,6 +22,8 @@ export const PERSONALITY_WEIGHTS: Record<Personality, Record<Activity, number>> 
     jump: 0.3,
     lookAround: 1,
     stretch: 1.5,
+    // A lazy cat only ambles after the cursor when it has nothing better.
+    follow: 0.8,
   },
   playful: {
     idle: 1.5,
@@ -31,6 +34,7 @@ export const PERSONALITY_WEIGHTS: Record<Personality, Record<Activity, number>> 
     jump: 1.5,
     lookAround: 1.5,
     stretch: 1,
+    follow: 2,
   },
   energetic: {
     idle: 1,
@@ -41,6 +45,7 @@ export const PERSONALITY_WEIGHTS: Record<Personality, Record<Activity, number>> 
     jump: 3,
     lookAround: 1,
     stretch: 1,
+    follow: 2.5,
   },
   mischievous: {
     idle: 1,
@@ -51,17 +56,11 @@ export const PERSONALITY_WEIGHTS: Record<Personality, Record<Activity, number>> 
     jump: 2.2,
     lookAround: 2,
     stretch: 1,
+    follow: 1.5,
   },
 };
 
 /** How likely (0-1) this personality is to retreat after being clicked too many times. */
-export const RETREAT_TENDENCY: Record<Personality, number> = {
-  lazy: 0.1,
-  playful: 0.15,
-  energetic: 0.1,
-  mischievous: 0.2,
-};
-
 /** Occasional out-of-nowhere action chance per decision tick, flavor for "mischievous". */
 export const RANDOM_QUIRK_CHANCE: Record<Personality, number> = {
   lazy: 0.02,

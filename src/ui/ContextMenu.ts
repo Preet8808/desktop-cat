@@ -3,7 +3,6 @@ import { FoodType, AppMode } from "../core/types";
 export interface ContextMenuActions {
   onFeed: (food: FoodType) => void;
   onPet: () => void;
-  onSleep?: () => void;
   onStats?: () => void;
   onSettings?: () => void;
   onToggleMode?: () => void;

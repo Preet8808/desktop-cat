@@ -5,6 +5,9 @@ export class StatsPanel {
   private onVisibilityChange: (visible: boolean) => void;
   private openedAt = 0;
   private built = false;
+  private lastStats: Partial<PetStatsData> = {};
+  private lastName = "";
+  private lastUpdateAt = 0;
   private titleEl: HTMLElement | null = null;
   private fillEls: Record<string, HTMLElement> = {};
 
@@ -48,12 +51,17 @@ export class StatsPanel {
   }
 
   update(name: string, stats: PetStatsData): void {
-    if (!this.el.classList.contains("hidden")) {
-      if (!this.built) {
-        this.buildDOM();
-      }
-      this.updateValues(name, stats);
+    if (this.el.classList.contains("hidden")) return;
+    if (!this.built) {
+      this.buildDOM();
     }
+    // This is called from the render ticker (~60Hz), but the bars only change
+    // perceptibly a few times a second. Throttle to ~4Hz so we are not doing
+    // layout-invalidating style writes on every frame.
+    const now = performance.now();
+    if (now - this.lastUpdateAt < 250) return;
+    this.lastUpdateAt = now;
+    this.updateValues(name, stats);
   }
 
   hide(): void {
@@ -112,14 +120,20 @@ export class StatsPanel {
   }
 
   private updateValues(name: string, stats: PetStatsData): void {
-    if (this.titleEl) {
+    if (this.titleEl && name !== this.lastName) {
       this.titleEl.textContent = `${name}'s Stats`;
+      this.lastName = name;
     }
     const keys: (keyof PetStatsData)[] = ["hunger", "happiness", "energy", "affection"];
     for (const key of keys) {
+      // Bars are rendered as whole percent, so only touch the DOM when the
+      // rounded value actually changed.
+      const pct = Math.round(stats[key]);
+      if (this.lastStats[key] === pct) continue;
+      this.lastStats[key] = pct;
       const fill = this.fillEls[key];
       if (fill) {
-        fill.style.width = `${Math.round(stats[key])}%`;
+        fill.style.width = `${pct}%`;
       }
     }
   }

@@ -27,6 +27,8 @@ export class BongoCat {
   private pressedKeys = new Set<string>();
   private dragging = false;
   private dragOffset = { x: 0, y: 0 };
+  /** Debounce for right-click so one click cannot open the menu twice. */
+  private lastRightClickTime = 0;
   private hasTauri: boolean;
   private unlistenKey: UnlistenFn | null = null;
   private unlistenMouse: UnlistenFn | null = null;
@@ -376,11 +378,10 @@ export class BongoCat {
     this.container.eventMode = "static";
     this.container.cursor = "grab";
 
-    let lastRightClickTime = 0;
     const triggerRightClick = (screenX: number, screenY: number) => {
       const now = performance.now();
-      if (now - lastRightClickTime < 300) return;
-      lastRightClickTime = now;
+      if (now - this.lastRightClickTime < 300) return;
+      this.lastRightClickTime = now;
       this.callbacks.onRightClick(screenX, screenY);
     };
 
@@ -404,63 +405,69 @@ export class BongoCat {
       triggerRightClick(e.global.x, e.global.y);
     });
 
-    window.addEventListener("pointermove", (e) => {
-      if (!this.dragging) return;
-      const bounds = this.getBounds();
-      const currentWidth = bounds.width;
-      const currentHeight = bounds.height;
-      const nx = Math.max(0, Math.min(window.innerWidth - currentWidth, e.clientX - this.dragOffset.x));
-      const ny = Math.max(0, Math.min(window.innerHeight - currentHeight, e.clientY - this.dragOffset.y));
-      this.container.x = nx;
-      this.container.y = ny;
-      this.callbacks.onPositionChange(nx, ny);
-    });
+    window.addEventListener("pointermove", this.handleWindowPointerMove);
 
-    window.addEventListener("pointerup", () => {
-      if (this.dragging) {
-        this.dragging = false;
-        this.container.cursor = "grab";
-      }
-    });
+    window.addEventListener("pointerup", this.handleWindowPointerUp);
 
     // Scroll wheel on Bongo Cat directly adjusts size smoothly
-    window.addEventListener(
-      "wheel",
-      (e) => {
-        if (!this.container.visible) return;
-        const bounds = this.getBounds();
-        if (
-          e.clientX >= bounds.x &&
-          e.clientX <= bounds.x + bounds.width &&
-          e.clientY >= bounds.y &&
-          e.clientY <= bounds.y + bounds.height
-        ) {
-          e.preventDefault();
-          const step = e.deltaY < 0 ? 0.05 : -0.05;
-          const current = this.getScale();
-          const next = Math.max(0.35, Math.min(2.2, Math.round((current + step) * 20) / 20));
-          this.setScale(next);
-          this.callbacks.onScaleChange?.(next);
-        }
-      },
-      { passive: false }
-    );
+    window.addEventListener("wheel", this.handleWheel, { passive: false });
 
     // Native contextmenu fallback
-    window.addEventListener("contextmenu", (e) => {
-      if (!this.container.visible) return;
-      const bounds = this.getBounds();
-      if (
-        e.clientX >= bounds.x &&
-        e.clientX <= bounds.x + bounds.width &&
-        e.clientY >= bounds.y &&
-        e.clientY <= bounds.y + bounds.height
-      ) {
-        e.preventDefault();
-        triggerRightClick(e.clientX, e.clientY);
-      }
-    });
+    window.addEventListener("contextmenu", this.handleContextMenu);
   }
+
+  // Bound once and stored so cleanupListeners can actually remove them.
+  private handleWindowPointerMove = (e: PointerEvent): void => {
+    if (!this.dragging) return;
+    const bounds = this.getBounds();
+    const nx = Math.max(0, Math.min(window.innerWidth - bounds.width, e.clientX - this.dragOffset.x));
+    const ny = Math.max(0, Math.min(window.innerHeight - bounds.height, e.clientY - this.dragOffset.y));
+    this.container.x = nx;
+    this.container.y = ny;
+    this.callbacks.onPositionChange(nx, ny);
+  };
+
+  private handleWindowPointerUp = (): void => {
+    if (this.dragging) {
+      this.dragging = false;
+      this.container.cursor = "grab";
+    }
+  };
+
+  private handleWheel = (e: WheelEvent): void => {
+    if (!this.container.visible) return;
+    const bounds = this.getBounds();
+    if (
+      e.clientX >= bounds.x &&
+      e.clientX <= bounds.x + bounds.width &&
+      e.clientY >= bounds.y &&
+      e.clientY <= bounds.y + bounds.height
+    ) {
+      e.preventDefault();
+      const step = e.deltaY < 0 ? 0.05 : -0.05;
+      const current = this.getScale();
+      const next = Math.max(0.35, Math.min(2.2, Math.round((current + step) * 20) / 20));
+      this.setScale(next);
+      this.callbacks.onScaleChange?.(next);
+    }
+  };
+
+  private handleContextMenu = (e: MouseEvent): void => {
+    if (!this.container.visible) return;
+    const bounds = this.getBounds();
+    if (
+      e.clientX >= bounds.x &&
+      e.clientX <= bounds.x + bounds.width &&
+      e.clientY >= bounds.y &&
+      e.clientY <= bounds.y + bounds.height
+    ) {
+      e.preventDefault();
+      // Reuse the same debounce as the Pixi path so a single right-click
+      // cannot open the menu twice.
+      this.lastRightClickTime = performance.now();
+      this.callbacks.onRightClick(e.clientX, e.clientY);
+    }
+  };
 
   private attachTauriListeners(): void {
     this.cleanupListeners();
@@ -543,5 +550,9 @@ export class BongoCat {
     window.removeEventListener("keyup", this.handleKeyUp);
     window.removeEventListener("mousedown", this.handleMouseDown);
     window.removeEventListener("mouseup", this.handleMouseUp);
+    window.removeEventListener("pointermove", this.handleWindowPointerMove);
+    window.removeEventListener("pointerup", this.handleWindowPointerUp);
+    window.removeEventListener("wheel", this.handleWheel);
+    window.removeEventListener("contextmenu", this.handleContextMenu);
   }
 }

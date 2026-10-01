@@ -1,6 +1,6 @@
 import * as PIXI from "pixi.js";
 import { AnimationName } from "../core/types";
-import { ANIMATION_NAMES } from "./SpriteGenerator";
+import { ANIMATION_NAMES } from "./animationNames";
 
 interface LoadedAnimation {
   textures: PIXI.Texture[];
@@ -41,7 +41,6 @@ const NON_LOOPING: Set<AnimationName> = new Set([
 ]);
 
 const ATLAS_FRAME_SIZE = 32;
-const ATLAS_COLUMNS = 11;
 
 interface AtlasAnimation {
   row: number;
@@ -82,6 +81,8 @@ export class AnimationSystem {
   private animations = new Map<AnimationName, LoadedAnimation>();
   private current: AnimationName = "idle";
   private onCompleteCallback: (() => void) | null = null;
+  /** Pending minimum-display hold timer, if any (see playOnce). */
+  private holdTimer: number | null = null;
 
   private constructor(sprite: PIXI.AnimatedSprite, animations: Map<AnimationName, LoadedAnimation>) {
     this.sprite = sprite;
@@ -131,6 +132,13 @@ export class AnimationSystem {
     const anim = this.animations.get(name);
     if (!anim) return;
 
+    // Cancel any pending minimum-display hold. Without this, switching
+    // animations during the hold would let the stale timer fire later and
+    // overwrite the newly requested state.
+    if (this.holdTimer !== null) {
+      window.clearTimeout(this.holdTimer);
+      this.holdTimer = null;
+    }
     this.onCompleteCallback = null;
     this.current = name;
     this.sprite.textures = anim.textures;
@@ -146,9 +154,30 @@ export class AnimationSystem {
         };
   }
 
-  /** Play a one-shot animation, then invoke callback (used to chain back to idle/walk). */
+  /** Play a one-shot animation, then invoke callback (used to chain back to idle/walk).
+   * If the animation is non-looping but very short (e.g. stretch at 2 frames / 8fps = 0.25s),
+   * enforce a minimum display time so the pose is actually visible before the callback fires.
+   */
   playOnce(name: AnimationName, onComplete: () => void): void {
     this.play(name, true);
-    this.onCompleteCallback = onComplete;
+    const anim = this.animations.get(name)!;
+    const naturalDuration = (anim.textures.length / anim.fps) * 1000;
+    const minDisplayMs = 600;
+
+    if (naturalDuration < minDisplayMs) {
+      // Let the sprite finish its natural cycle, then hold for the remainder.
+      const holdMs = minDisplayMs - naturalDuration;
+      this.onCompleteCallback = () => {
+        // Freeze on the last frame during the hold.
+        this.sprite.stop();
+        this.holdTimer = window.setTimeout(() => {
+          this.holdTimer = null;
+          this.onCompleteCallback = null;
+          onComplete();
+        }, holdMs);
+      };
+    } else {
+      this.onCompleteCallback = onComplete;
+    }
   }
 }

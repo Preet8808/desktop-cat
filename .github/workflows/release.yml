@@ -36,17 +36,18 @@ jobs:
           tagName: v__VERSION__
           releaseName: 'Desktop Cat v__VERSION__'
           releaseBody: |
-            ## Desktop Cat Release 🐾
+            ## Desktop Cat Release
 
             ### Downloads:
             - **Installer (Recommended)**: `Desktop Cat_{{version}}_x64-setup.exe`
             - **MSI Package**: `Desktop Cat_{{version}}_x64_en-US.msi`
 
             ### Features:
-            - Interactive Desktop Cat companion for Windows
-            - Real-time physics, gravity, dragging, and floor collision
-            - Eating animations with food & water bowls
-            - Petting animations with hand strokes, purr sparkles & hearts
-            - Stats panel (hunger, energy, happiness) and customizable personality!
+            - Interactive desktop cat companion for Windows
+            - Four personalities with weighted autonomous behaviour
+            - The cat roams the whole screen and follows your cursor
+            - Bongo Cat mode with live keyboard and mouse input
+            - Drag to reposition, with the position saved between sessions
+            - Stats panel (hunger, happiness, energy, affection)
           releaseDraft: false
           prerelease: false

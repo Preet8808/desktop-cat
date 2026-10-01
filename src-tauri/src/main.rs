@@ -5,6 +5,8 @@ use std::fs;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use std::sync::OnceLock;
+
 use tauri::{
     AppHandle, CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu,
     SystemTrayMenuItem, Window,
@@ -18,7 +20,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 };
 
 static BONGO_ACTIVE: AtomicBool = AtomicBool::new(false);
-static mut HOOK_WINDOW: Option<Window> = None;
+/// Set once at startup; safe to read from hook threads after that.
+static HOOK_WINDOW: OnceLock<Window> = OnceLock::new();
 
 #[derive(serde::Serialize)]
 struct CursorPosition {
@@ -48,7 +51,8 @@ fn vk_to_key_name(vk: u32) -> String {
         0x12 | 0xA4 => "ALT_L".to_string(),
         0xA5 => "ALT_R".to_string(),
         0x14 => "CAPSLOCK".to_string(),
-        0x2E | 0x2D => "DELETE".to_string(),
+        0x2E => "DELETE".to_string(),
+        0x2D => "INSERT".to_string(),
         0xC0 => "`".to_string(),
         0xBF => "/".to_string(),
         0xBA => ";".to_string(),
@@ -82,8 +86,12 @@ unsafe extern "system" fn bongo_keyboard_proc(code: i32, wparam: usize, lparam: 
         if is_down || is_up {
             let kb = *(lparam as *const KBDLLHOOKSTRUCT);
             let key_name = vk_to_key_name(kb.vkCode);
-            if let Some(ref win) = HOOK_WINDOW {
-                let _ = win.emit("bongo-key-event", (key_name, is_down));
+            // Only emit for known keys; empty string means unrecognised, skip it
+            // to avoid spamming the frontend on every keypress.
+            if !key_name.is_empty() {
+                if let Some(win) = HOOK_WINDOW.get() {
+                    let _ = win.emit("bongo-key-event", (key_name, is_down));
+                }
             }
         }
     }
@@ -92,28 +100,17 @@ unsafe extern "system" fn bongo_keyboard_proc(code: i32, wparam: usize, lparam: 
 
 unsafe extern "system" fn bongo_mouse_proc(code: i32, wparam: usize, lparam: isize) -> isize {
     if code >= 0 && BONGO_ACTIVE.load(Ordering::Relaxed) {
-        match wparam as u32 {
-            WM_LBUTTONDOWN => {
-                if let Some(ref win) = HOOK_WINDOW {
-                    let _ = win.emit("bongo-mouse-event", ("left", true));
-                }
+        let btn_event: Option<(&str, bool)> = match wparam as u32 {
+            WM_LBUTTONDOWN => Some(("left", true)),
+            WM_LBUTTONUP   => Some(("left", false)),
+            WM_RBUTTONDOWN => Some(("right", true)),
+            WM_RBUTTONUP   => Some(("right", false)),
+            _ => None,
+        };
+        if let Some(payload) = btn_event {
+            if let Some(win) = HOOK_WINDOW.get() {
+                let _ = win.emit("bongo-mouse-event", payload);
             }
-            WM_LBUTTONUP => {
-                if let Some(ref win) = HOOK_WINDOW {
-                    let _ = win.emit("bongo-mouse-event", ("left", false));
-                }
-            }
-            WM_RBUTTONDOWN => {
-                if let Some(ref win) = HOOK_WINDOW {
-                    let _ = win.emit("bongo-mouse-event", ("right", true));
-                }
-            }
-            WM_RBUTTONUP => {
-                if let Some(ref win) = HOOK_WINDOW {
-                    let _ = win.emit("bongo-mouse-event", ("right", false));
-                }
-            }
-            _ => {}
         }
     }
     CallNextHookEx(std::ptr::null_mut(), code, wparam, lparam)
@@ -130,22 +127,25 @@ fn set_click_through(window: Window, ignore: bool) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn start_native_drag(window: Window) -> Result<(), String> {
-    window.start_dragging().map_err(|e| e.to_string())
-}
-
-#[tauri::command]
 fn get_cursor_position(window: Window) -> Result<CursorPosition, String> {
-    let mut position = POINT { x: 0, y: 0 };
-    let result = unsafe { GetCursorPos(&mut position) };
+    let mut point = POINT { x: 0, y: 0 };
+    let result = unsafe { GetCursorPos(&mut point) };
     if result == 0 {
         return Err("could not read cursor position".to_string());
     }
+
     let scale_factor = window.scale_factor().map_err(|e| e.to_string())?;
 
+    // GetCursorPos returns virtual-desktop coordinates. The window is anchored
+    // to the primary monitor origin, so subtract its position to get coords
+    // that match what the frontend expects (origin = top-left of the window).
+    let win_pos = window
+        .outer_position()
+        .map_err(|e| e.to_string())?;
+
     Ok(CursorPosition {
-        x: f64::from(position.x) / scale_factor,
-        y: f64::from(position.y) / scale_factor,
+        x: (f64::from(point.x) - f64::from(win_pos.x)) / scale_factor,
+        y: (f64::from(point.y) - f64::from(win_pos.y)) / scale_factor,
     })
 }
 
@@ -224,10 +224,10 @@ fn main() {
             let _ = window.set_ignore_cursor_events(true);
             let _ = window.show();
 
-            let hook_window = window.clone();
-            unsafe {
-                HOOK_WINDOW = Some(hook_window);
-            }
+            // Store the window handle for the hook thread. OnceLock is safe to
+            // read from multiple threads after this single write at startup.
+            let _ = HOOK_WINDOW.set(window);
+
             std::thread::spawn(|| {
                 unsafe {
                     let k_hook = SetWindowsHookExW(WH_KEYBOARD_LL, Some(bongo_keyboard_proc), std::ptr::null_mut(), 0);
@@ -250,7 +250,6 @@ fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             set_click_through,
-            start_native_drag,
             get_cursor_position,
             get_save_path,
             read_save_file,
